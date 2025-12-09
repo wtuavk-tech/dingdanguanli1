@@ -1058,7 +1058,7 @@ const App = () => {
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 sticky top-0 z-30 max-w-[150px]">收藏备注</th>
 
                   {/* --- 固定列 (联系人, 催单, 操作) --- */}
-                  <th className="px-2 py-2 whitespace-nowrap text-center w-[140px] sticky-th-solid sticky-col sticky-right-contact">联系人</th>
+                  <th className="px-2 py-2 whitespace-nowrap text-center min-w-[200px] w-[200px] sticky-th-solid sticky-col sticky-right-contact">联系人</th>
                   <th className="px-2 py-2 whitespace-nowrap text-center w-[80px] sticky-th-solid sticky-col sticky-right-remind border-l border-gray-200">催单</th> 
                   <th className="px-2 py-2 text-center sticky-th-solid sticky-col sticky-right-action whitespace-nowrap w-[70px] border-l border-gray-200">操作</th>
                 </tr>
@@ -1173,11 +1173,11 @@ const App = () => {
 
                     {/* --- 固定列 (联系人, 催单, 操作) --- */}
                     <td className="px-2 py-2 align-middle text-center sticky-col sticky-right-contact sticky-bg-solid" onMouseEnter={handleMouseEnterOther}>
-                      <div className="grid grid-cols-2 gap-1 justify-items-center max-w-[100px] mx-auto">
-                        <button onClick={() => handleOpenChat('派单员', order)} className="text-[11px] w-full py-0.5 rounded border border-slate-200 bg-white hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap font-medium">派单员</button>
-                        <button onClick={() => handleOpenChat('运营', order)} className="text-[11px] w-full py-0.5 rounded border border-slate-200 bg-white hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap font-medium">运营</button>
-                        <button onClick={() => handleOpenChat('售后', order)} className="text-[11px] w-full py-0.5 rounded border border-slate-200 bg-white hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap font-medium">售后</button>
-                        <button onClick={() => handleOpenChat('群聊', order)} className="text-[11px] w-full py-0.5 rounded border border-slate-200 bg-white hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap font-medium">群聊</button>
+                      <div className="grid grid-cols-2 gap-2 p-1 w-full">
+                        <button onClick={() => handleOpenChat('派单员', order)} className="text-[11px] w-full py-1 px-1 rounded border border-slate-300 bg-white hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap font-medium shadow-sm">派单员</button>
+                        <button onClick={() => handleOpenChat('运营', order)} className="text-[11px] w-full py-1 px-1 rounded border border-slate-300 bg-white hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap font-medium shadow-sm">运营</button>
+                        <button onClick={() => handleOpenChat('售后', order)} className="text-[11px] w-full py-1 px-1 rounded border border-slate-300 bg-white hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap font-medium shadow-sm">售后</button>
+                        <button onClick={() => handleOpenChat('群聊', order)} className="text-[11px] w-full py-1 px-1 rounded border border-slate-300 bg-white hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap font-medium shadow-sm">群聊</button>
                       </div>
                     </td>
                     <td className="px-2 py-2 align-middle text-center sticky-col sticky-right-remind sticky-bg-solid border-l border-gray-200" onMouseEnter={handleMouseEnterOther}><ReminderCell order={order} onRemind={handleRemindOrder} /></td>
