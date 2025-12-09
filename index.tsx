@@ -78,7 +78,7 @@ interface Order {
   isReminded: boolean;
   suggestedMethod: string; // 建议方式
   guidePrice: number;      // 划线价
-  historicalPrice: number; // 历史价
+  historicalPrice: string; // 历史价 (改为字符串区间)
 
   // --- 新增字段 ---
   hasCoupon: boolean;      // 是否有券
@@ -163,6 +163,10 @@ const generateMockData = (): Order[] => {
     const dispatchDate = new Date(now.getTime() - Math.random() * 86400000 * 3);
     const completeDate = new Date(dispatchDate.getTime() + Math.random() * 7200000 + 3600000);
     const paymentDate = new Date(completeDate.getTime() + Math.random() * 60000);
+    
+    // Create historical price range
+    const minPrice = Math.floor(amount * 0.8);
+    const maxPrice = Math.floor(amount * 1.2);
 
     return {
       id,
@@ -189,7 +193,7 @@ const generateMockData = (): Order[] => {
       isReminded: false,
       suggestedMethod: methods[i % methods.length],
       guidePrice: amount * 1.2,
-      historicalPrice: amount * (0.9 + Math.random() * 0.2),
+      historicalPrice: `${minPrice}-${maxPrice}`,
 
       // 新增字段 Mock
       hasCoupon: Math.random() > 0.7,
@@ -919,37 +923,73 @@ const App = () => {
   return (
     <div className="h-screen bg-gradient-to-br from-slate-200 to-slate-300 p-6 flex flex-col overflow-hidden">
       <style>{`
-        /* 强力覆盖：确保固定列背景色绝对不透明，防止内容穿透 */
-        .sticky-cell { 
-          background-color: #ffffff; 
-          z-index: 50 !important;
-          position: sticky !important;
-          /* 强制硬件加速，防止渲染层级错误 */
-          transform: translate3d(0,0,0);
-        }
-        
-        /* 斑马纹适配 - 必须使用 !important 覆盖行的默认背景 */
-        tr:nth-child(even) .sticky-cell { 
-          background-color: #eff6ff !important; 
+        /* 
+         * 核心优化：强制覆盖表格层级和背景，解决右侧固定列穿插问题
+         * 使用 !important 确保样式优先级最高，不受 Tailwind 类名影响
+         */
+
+        /* 1. 全局单元格层级重置：让所有普通单元格层级最低 */
+        td, th {
+          z-index: 1;
+          position: relative;
         }
 
-        /* 悬停高亮适配 */
-        tr:hover .sticky-cell { 
+        /* 2. 右侧固定列：最高层级，压住所有内容 */
+        .sticky-col {
+          position: sticky !important;
+          z-index: 100 !important; /* 远高于普通单元格 */
+          background-clip: padding-box;
+        }
+        
+        /* 表头固定列：需要比表体固定列更高，防止表体内容滚上来盖住表头 */
+        thead th.sticky-col {
+          z-index: 110 !important;
+        }
+        
+        /* 普通表头：也需要比普通内容高 */
+        thead th:not(.sticky-col) {
+          z-index: 50; 
+        }
+
+        /* --- 3. 背景色 (必须100%不透明) --- */
+        
+        /* 表头背景 */
+        th.sticky-th-solid {
+          background-color: #f8fafc !important; /* slate-50 */
+        }
+
+        /* 表体背景 - 默认（奇数行） */
+        tr td.sticky-bg-solid {
+          background-color: #ffffff !important;
+        }
+        
+        /* 表体背景 - 偶数行 (Tailwind blue-50) */
+        tr:nth-child(even) td.sticky-bg-solid {
+          background-color: #eff6ff !important; 
+        }
+        
+        /* 表体背景 - 鼠标悬停 (Tailwind blue-100) - 优先级最高 */
+        tr:hover td.sticky-bg-solid {
           background-color: #dbeafe !important; 
         }
 
-        /* 表头固定列背景 */
-        th.sticky-header {
-           background-color: #f8fafc !important; 
-           z-index: 60 !important;
-           position: sticky !important;
+        /* --- 4. 定位与视觉分割 --- */
+        
+        /* 联系人列 (最左边的固定列) */
+        .sticky-right-contact {
+          right: 150px !important;
+          border-left: 1px solid #cbd5e1 !important; /* 左侧实体分割线 */
+          box-shadow: -6px 0 10px -4px rgba(0,0,0,0.15); /* 左侧投影，营造悬浮感 */
         }
         
-        /* 分隔阴影 - 仅加在最左侧的固定列(联系人) */
-        .sticky-cell-shadow {
-           box-shadow: -4px 0 8px -2px rgba(0,0,0,0.1);
-           border-left: 1px solid #e2e8f0; /* 强化边界 */
-           clip-path: inset(0px -15px 0px 0px); /* 防止阴影被遮挡 */
+        /* 催单列 */
+        .sticky-right-remind {
+          right: 70px !important;
+        }
+        
+        /* 操作列 */
+        .sticky-right-action {
+          right: 0px !important;
         }
       `}</style>
       <div className="max-w-[1800px] mx-auto w-full flex-1 flex flex-col h-full">
@@ -994,6 +1034,8 @@ const App = () => {
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">是否验券</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">是否已读</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">是否拨打</th>
+                  
+                  {/* 注意：以下列在初始视图中会被右侧固定列遮挡，滑动横条才会出现 */}
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">质保期</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">工作机</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">客户姓名</th>
@@ -1016,9 +1058,9 @@ const App = () => {
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 sticky top-0 z-30 max-w-[150px]">收藏备注</th>
 
                   {/* --- 固定列 (联系人, 催单, 操作) --- */}
-                  <th className="px-2 py-2 whitespace-nowrap text-center w-[140px] sticky-header sticky right-[150px] z-50 sticky-cell-shadow border-l border-gray-200">联系人</th>
-                  <th className="px-2 py-2 whitespace-nowrap text-center w-[80px] sticky-header sticky right-[70px] z-50 border-l border-gray-200">催单</th> 
-                  <th className="px-2 py-2 text-center sticky right-0 top-0 sticky-header z-50 whitespace-nowrap w-[70px] border-l border-gray-200">操作</th>
+                  <th className="px-2 py-2 whitespace-nowrap text-center w-[140px] sticky-th-solid sticky-col sticky-right-contact">联系人</th>
+                  <th className="px-2 py-2 whitespace-nowrap text-center w-[80px] sticky-th-solid sticky-col sticky-right-remind border-l border-gray-200">催单</th> 
+                  <th className="px-2 py-2 text-center sticky-th-solid sticky-col sticky-right-action whitespace-nowrap w-[70px] border-l border-gray-200">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-300">
@@ -1065,13 +1107,13 @@ const App = () => {
                     </td>
 
                      {/* 划线价 */}
-                    <td className="px-2 py-2 text-center align-middle font-medium text-slate-400 decoration-slate-400" onMouseEnter={handleMouseEnterOther}>
+                    <td className="px-2 py-2 text-center align-middle font-medium text-slate-600" onMouseEnter={handleMouseEnterOther}>
                        {formatCurrency(order.guidePrice)}
                     </td>
 
                      {/* 历史价 */}
                     <td className="px-2 py-2 text-center align-middle font-medium text-slate-600" onMouseEnter={handleMouseEnterOther}>
-                       {formatCurrency(order.historicalPrice)}
+                       {order.historicalPrice}
                     </td>
 
                     {/* 来源 */}
@@ -1095,8 +1137,18 @@ const App = () => {
                     {/* --- 新增列内容 (24列) --- */}
                     <td className="px-2 py-2 align-middle text-center whitespace-nowrap">{order.hasCoupon ? <Check size={14} className="text-green-500 mx-auto"/> : <span className="text-gray-300">-</span>}</td>
                     <td className="px-2 py-2 align-middle text-center whitespace-nowrap">{order.isCouponVerified ? <span className="text-green-600 font-bold">是</span> : <span className="text-gray-400">否</span>}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap">{order.isRead ? <Eye size={14} className="text-blue-500 mx-auto"/> : <span className="text-gray-300">未读</span>}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap">{order.isCalled ? <Phone size={14} className="text-green-500 mx-auto"/> : <span className="text-gray-300">未打</span>}</td>
+                    
+                    {/* 是否已读 */}
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap">
+                        {order.isRead ? <span className="text-gray-400 text-[11px]">已读</span> : <span className="text-orange-500 text-[11px]">未读</span>}
+                    </td>
+                    
+                    {/* 是否拨打 */}
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap">
+                        {order.isCalled ? <span className="text-gray-400 text-[11px]">已拨打</span> : <span className="text-orange-500 text-[11px]">未拨打</span>}
+                    </td>
+                    
+                    {/* 以下列内容在初始状态会被右侧固定列遮挡 */}
                     <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-600">{order.warrantyPeriod}</td>
                     <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-600">{order.workPhone}</td>
                     <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-700 font-medium">{order.customerName}</td>
@@ -1120,7 +1172,7 @@ const App = () => {
 
 
                     {/* --- 固定列 (联系人, 催单, 操作) --- */}
-                    <td className="px-2 py-2 align-middle text-center sticky-cell sticky right-[150px] sticky-cell-shadow border-l border-gray-200" onMouseEnter={handleMouseEnterOther}>
+                    <td className="px-2 py-2 align-middle text-center sticky-col sticky-right-contact sticky-bg-solid" onMouseEnter={handleMouseEnterOther}>
                       <div className="grid grid-cols-2 gap-1 justify-items-center max-w-[100px] mx-auto">
                         <button onClick={() => handleOpenChat('派单员', order)} className="text-[11px] w-full py-0.5 rounded border border-slate-200 bg-white hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap font-medium">派单员</button>
                         <button onClick={() => handleOpenChat('运营', order)} className="text-[11px] w-full py-0.5 rounded border border-slate-200 bg-white hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap font-medium">运营</button>
@@ -1128,8 +1180,8 @@ const App = () => {
                         <button onClick={() => handleOpenChat('群聊', order)} className="text-[11px] w-full py-0.5 rounded border border-slate-200 bg-white hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap font-medium">群聊</button>
                       </div>
                     </td>
-                    <td className="px-2 py-2 align-middle text-center sticky-cell sticky right-[70px] border-l border-gray-200" onMouseEnter={handleMouseEnterOther}><ReminderCell order={order} onRemind={handleRemindOrder} /></td>
-                    <td className="px-2 py-2 text-center sticky-cell sticky right-0 whitespace-nowrap border-l border-gray-200"><ActionCell orderId={order.id} onAction={handleAction} /></td>
+                    <td className="px-2 py-2 align-middle text-center sticky-col sticky-right-remind sticky-bg-solid border-l border-gray-200" onMouseEnter={handleMouseEnterOther}><ReminderCell order={order} onRemind={handleRemindOrder} /></td>
+                    <td className="px-2 py-2 text-center sticky-col sticky-right-action sticky-bg-solid whitespace-nowrap border-l border-gray-200"><ActionCell orderId={order.id} onAction={handleAction} /></td>
                   </tr>
                 ))}
               </tbody>
