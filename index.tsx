@@ -40,7 +40,9 @@ import {
   Clock,
   Tag,
   Eye,
-  Phone
+  Phone,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 // --- 类型定义 ---
@@ -91,6 +93,7 @@ interface Order {
   dispatcherName: string;  // 派单员
   recorderName: string;    // 录单员
   masterName: string;      // 师傅
+  masterPhone: string;     // 师傅手机号 (新增)
   totalReceipt: number;    // 总收款
   // cost 已存在
   revenue: number;         // 业绩
@@ -206,6 +209,7 @@ const generateMockData = (): Order[] => {
       dispatcherName: dispatchers[i % dispatchers.length],
       recorderName: dispatchers[(i + 1) % dispatchers.length],
       masterName: masters[i % masters.length],
+      masterPhone: `18${i % 9}****${String(6600 + i).slice(-4)}`, // 新增师傅手机
       totalReceipt: amount,
       revenue: amount - cost,
       actualPaid: amount * 0.9,
@@ -386,7 +390,7 @@ const SearchPanel = ({ isOpen }: { isOpen: boolean; onToggle?: () => void }) => 
               </div>
               {/* 13. Offline Master Phone */}
               <div className="flex items-center gap-2 col-span-1">
-                  <label className="text-xs text-slate-500 whitespace-nowrap min-w-[30px] text-right">线师号</label>
+                  <label className="text-xs text-slate-500 whitespace-nowrap min-w-[30px] text-right">线下师傅手机</label>
                   <input type="text" className="h-8 w-full px-2 border border-blue-200 rounded text-xs focus:border-blue-500 focus:outline-none bg-white placeholder-slate-300" placeholder="请输入..." />
               </div>
               {/* 14. Cost Ratio */}
@@ -709,7 +713,7 @@ const TooltipCell = ({ content, maxWidthClass = "max-w-[100px]", showTooltip }: 
 const ServiceItemCell = ({ item }: { item: string }) => {
   return (
     <div className="py-1">
-      <span className="font-medium text-gray-800 text-[11px]">
+      <span className="font-medium text-gray-800 text-[12px]">{/* 增加字号 */}
         {item}
       </span>
     </div>
@@ -730,17 +734,17 @@ const StatusCell = ({ order }: { order: Order }) => {
 
   return (
     <div className="flex flex-col items-center justify-center h-full">
-      <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${getStatusStyle(order.status)}`}>
+      <span className={`px-2 py-0.5 rounded text-[13px] font-semibold whitespace-nowrap ${getStatusStyle(order.status)}`}>{/* 增加字号 */}
         {order.status}
       </span>
       {order.status === OrderStatus.Returned && order.returnReason && (
-        <span className="text-[10px] text-red-500 mt-0.5 max-w-[140px] leading-tight text-center block">
+        <span className="text-[11px] text-red-500 mt-0.5 max-w-[140px] leading-tight text-center block">{/* 增加字号 */}
           {order.returnReason}
         </span>
       )}
       {order.status === OrderStatus.Error && order.errorDetail && (
         <div className="mt-0.5 flex flex-col items-center">
-          <span className="text-[10px] text-yellow-700 bg-yellow-50 px-1 py-0 rounded border border-yellow-200 max-w-[140px] truncate block" title={order.errorDetail}>
+          <span className="text-[11px] text-yellow-700 bg-yellow-50 px-1 py-0 rounded border border-yellow-200 max-w-[140px] truncate block" title={order.errorDetail}>{/* 增加字号 */}
             {order.errorDetail}
           </span>
         </div>
@@ -877,12 +881,121 @@ const ActionCell = ({ orderId, onAction }: { orderId: number; onAction: (action:
   );
 };
 
+// --- 分页组件 ---
+const Pagination = ({ 
+  total, 
+  current, 
+  pageSize, 
+  onPageChange,
+  onSizeChange 
+}: { 
+  total: number; 
+  current: number; 
+  pageSize: number; 
+  onPageChange: (page: number) => void; 
+  onSizeChange: (size: number) => void;
+}) => {
+  const totalPages = Math.ceil(total / pageSize);
+  const [jumpPage, setJumpPage] = useState('');
+
+  const handleJump = () => {
+    const page = parseInt(jumpPage);
+    if (!isNaN(page) && page >= 1 && page <= totalPages) {
+      onPageChange(page);
+      setJumpPage('');
+    }
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (current > 3) pages.push('...');
+      const start = Math.max(2, current - 1);
+      const end = Math.min(totalPages - 1, current + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (current < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
+  return (
+    <div className="flex items-center justify-center gap-4 text-xs text-slate-600 select-none py-2">
+      <span className="text-slate-500">共 {total} 条</span>
+      
+      <div className="relative">
+        <select 
+          value={pageSize} 
+          onChange={(e) => onSizeChange(Number(e.target.value))}
+          className="appearance-none border border-slate-200 rounded px-2 py-1 pr-6 bg-white hover:border-blue-400 focus:border-blue-500 outline-none cursor-pointer"
+        >
+          <option value={10}>10条/页</option>
+          <option value={20}>20条/页</option>
+          <option value={50}>50条/页</option>
+          <option value={100}>100条/页</option>
+        </select>
+        <ChevronDown size={12} className="absolute right-1.5 top-2 pointer-events-none text-slate-400" />
+      </div>
+
+      <div className="flex items-center gap-1">
+        <button 
+          onClick={() => onPageChange(current - 1)} 
+          disabled={current === 1}
+          className="w-7 h-7 flex items-center justify-center rounded border border-slate-200 bg-slate-50 text-slate-500 hover:bg-white hover:border-blue-400 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        
+        {getPageNumbers().map((p, i) => (
+           typeof p === 'number' ? (
+            <button 
+              key={i}
+              onClick={() => onPageChange(p)}
+              className={`w-7 h-7 flex items-center justify-center rounded border text-sm font-medium transition-colors
+                ${current === p 
+                  ? 'bg-blue-600 border-blue-600 text-white' 
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-blue-400 hover:text-blue-600'}`}
+            >
+              {p}
+            </button>
+           ) : (
+             <span key={i} className="w-7 text-center text-slate-400">...</span>
+           )
+        ))}
+
+        <button 
+          onClick={() => onPageChange(current + 1)} 
+          disabled={current === totalPages}
+          className="w-7 h-7 flex items-center justify-center rounded border border-slate-200 bg-slate-50 text-slate-500 hover:bg-white hover:border-blue-400 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+
+      <div className="flex items-center gap-1">
+        <span>前往</span>
+        <input 
+          type="text" 
+          value={jumpPage}
+          onChange={(e) => setJumpPage(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleJump()}
+          className="w-10 h-7 border border-slate-200 rounded text-center outline-none focus:border-blue-500"
+        />
+        <span>页</span>
+      </div>
+    </div>
+  );
+};
+
 const App = () => {
   const [completeModalOpen, setCompleteModalOpen] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false); 
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 20; 
+  const [pageSize, setPageSize] = useState(20);
 
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>(FULL_MOCK_DATA);
@@ -903,7 +1016,6 @@ const App = () => {
   });
 
   const totalItems = sortedData.length;
-  const totalPages = Math.ceil(totalItems / pageSize);
   const currentData = sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const [chatState, setChatState] = useState<{isOpen: boolean; role: string; order: Order | null;}>({ isOpen: false, role: '', order: null });
   const [hoveredTooltipCell, setHoveredTooltipCell] = useState<{rowId: number, colKey: 'address' | 'details' | 'service'} | null>(null);
@@ -916,8 +1028,6 @@ const App = () => {
   };
 
   const handleOpenChat = (role: string, order: Order) => { setChatState({ isOpen: true, role, order }); };
-  const handleNextPage = () => { if (currentPage < totalPages) setCurrentPage(prev => prev + 1); };
-  const handlePrevPage = () => { if (currentPage > 1) setCurrentPage(prev => prev - 1); };
   const handleMouseEnterOther = () => { setHoveredTooltipCell(null); };
 
   return (
@@ -1041,7 +1151,10 @@ const App = () => {
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">客户姓名</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">派单员</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">录单员</th>
-                  <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">师傅</th>
+                  
+                  {/* 改动：师傅列变为师傅/手机号 */}
+                  <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">师傅/手机号</th>
+                  
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">总收款</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">成本</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">业绩</th>
@@ -1049,9 +1162,9 @@ const App = () => {
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">垫付金额</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">其他收款</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">完工收入</th>
+                  <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">服务时间</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">完成时间</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">收款时间</th>
-                  <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">服务时间</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 text-center sticky top-0 z-30">作废人/原因</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 sticky top-0 z-30 max-w-[150px]">作废详情</th>
                   <th className="px-2 py-2 whitespace-nowrap bg-slate-50 sticky top-0 z-30 max-w-[150px]">取消原因/详情</th>
@@ -1065,9 +1178,12 @@ const App = () => {
               </thead>
               <tbody className="divide-y divide-gray-300">
                 {currentData.map((order, index) => (
-                  <tr key={order.id} onMouseLeave={handleMouseEnterOther} className="bg-white even:bg-blue-50 hover:!bg-blue-100 transition-colors group text-xs border-b border-gray-300 last:border-0 align-middle">
-                    <td className="px-2 py-2 text-slate-800 font-bold text-[11px] tabular-nums whitespace-nowrap align-middle text-center" onMouseEnter={handleMouseEnterOther}>{order.mobile}</td>
+                  <tr key={order.id} onMouseLeave={handleMouseEnterOther} className="bg-white even:bg-blue-50 hover:!bg-blue-100 transition-colors group border-b border-gray-300 last:border-0 align-middle">
                     
+                    {/* 手机号: 增加字号 */}
+                    <td className="px-2 py-2 text-slate-800 font-bold text-[12px] tabular-nums whitespace-nowrap align-middle text-center" onMouseEnter={handleMouseEnterOther}>{order.mobile}</td>
+                    
+                    {/* 服务项目: 增加字号 */}
                     <td className="px-2 py-2 align-middle whitespace-nowrap" onMouseEnter={handleMouseEnterOther}>
                       <ServiceItemCell item={order.serviceItem} />
                     </td>
@@ -1076,12 +1192,13 @@ const App = () => {
                       <StatusCell order={order} />
                     </td>
 
-                    {/* 系数 */}
+                    {/* 系数: 增加字号 */}
                     <td className="px-2 py-2 text-center align-middle" onMouseEnter={handleMouseEnterOther}>
-                        <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold">{order.weightedCoefficient.toFixed(1)}</span>
+                        <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold text-[13px]">{order.weightedCoefficient.toFixed(1)}</span>
                     </td>
 
-                    <td className="px-2 py-2 text-slate-700 whitespace-nowrap align-middle text-center" onMouseEnter={handleMouseEnterOther}>
+                    {/* 地域: 不变 */}
+                    <td className="px-2 py-2 text-slate-700 whitespace-nowrap align-middle text-center text-[12px]" onMouseEnter={handleMouseEnterOther}>
                         <div className="relative pr-8 inline-block"> 
                             {order.region}
                             <span className="absolute bottom-0 right-0 text-[9px] text-blue-600 border border-blue-200 bg-blue-50 px-1 rounded">
@@ -1089,86 +1206,103 @@ const App = () => {
                             </span>
                         </div>
                     </td>
+                    
+                    {/* 详细地址: 不变 */}
                     <td className="px-2 py-2 align-middle" onMouseEnter={() => setHoveredTooltipCell({rowId: order.id, colKey: 'address'})}>
                       <TooltipCell content={order.address} maxWidthClass="max-w-[120px]" showTooltip={hoveredTooltipCell?.rowId === order.id && hoveredTooltipCell?.colKey === 'address'} />
                     </td>
+                    
+                    {/* 详情: 不变 */}
                     <td className="px-2 py-2 align-middle" onMouseEnter={() => setHoveredTooltipCell({rowId: order.id, colKey: 'details'})}>
                       <TooltipCell content={order.details} maxWidthClass="max-w-[140px]" showTooltip={hoveredTooltipCell?.rowId === order.id && hoveredTooltipCell?.colKey === 'details'} />
                     </td>
                     
-                    {/* 建议分成 */}
-                    <td className="px-2 py-2 text-center align-middle font-medium text-slate-600" onMouseEnter={handleMouseEnterOther}>
+                    {/* 建议分成: 增加字号 */}
+                    <td className="px-2 py-2 text-center align-middle font-medium text-slate-600 text-[11px]" onMouseEnter={handleMouseEnterOther}>
                        {order.serviceRatio}
                     </td>
                     
-                    {/* 建议方式 */}
+                    {/* 建议方式: 增加字号 */}
                     <td className="px-2 py-2 text-center align-middle" onMouseEnter={handleMouseEnterOther}>
-                       <span className="px-2 py-0.5 rounded border border-gray-200 bg-gray-50 text-[10px] text-gray-600 whitespace-nowrap">{order.suggestedMethod}</span>
+                       <span className="px-2 py-0.5 rounded border border-gray-200 bg-gray-50 text-[11px] text-gray-600 whitespace-nowrap">{order.suggestedMethod}</span>
                     </td>
 
-                     {/* 划线价 */}
-                    <td className="px-2 py-2 text-center align-middle font-medium text-slate-600" onMouseEnter={handleMouseEnterOther}>
+                     {/* 划线价: 增加字号 */}
+                    <td className="px-2 py-2 text-center align-middle font-medium text-slate-600 text-[13px]" onMouseEnter={handleMouseEnterOther}>
                        {formatCurrency(order.guidePrice)}
                     </td>
 
-                     {/* 历史价 */}
-                    <td className="px-2 py-2 text-center align-middle font-medium text-slate-600" onMouseEnter={handleMouseEnterOther}>
+                     {/* 历史价: 增加字号 */}
+                    <td className="px-2 py-2 text-center align-middle font-medium text-slate-600 text-[13px]" onMouseEnter={handleMouseEnterOther}>
                        {order.historicalPrice}
                     </td>
 
-                    {/* 来源 */}
-                    <td className="px-2 py-2 align-middle text-center" onMouseEnter={handleMouseEnterOther}><span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] border border-slate-200 whitespace-nowrap font-medium">{order.source}</span></td>
+                    {/* 来源: 增加字号 */}
+                    <td className="px-2 py-2 align-middle text-center" onMouseEnter={handleMouseEnterOther}><span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[11px] border border-slate-200 whitespace-nowrap font-medium">{order.source}</span></td>
                     
-                    {/* 订单/工单号 */}
+                    {/* 订单/工单号: 不变 */}
                     <td className="px-2 py-2 align-middle" onMouseEnter={handleMouseEnterOther}>
                         <CombinedIdCell orderNo={order.orderNo} workOrderNo={order.workOrderNo} hasAdvancePayment={order.hasAdvancePayment} depositAmount={order.depositAmount} />
                     </td>
 
-                    {/* 录单/上门时间 */}
+                    {/* 录单/上门时间: 不变 */}
                     <td className="px-2 py-2 align-middle" onMouseEnter={handleMouseEnterOther}>
                         <CombinedTimeCell recordTime={order.recordTime} dispatchTime={order.dispatchTime} />
                     </td>
 
-                    {/* 资源 */}
+                    {/* 资源: 不变 */}
                     <td className="px-2 py-2 align-middle text-center" onMouseEnter={handleMouseEnterOther}>
                         <button className="text-blue-600 hover:bg-blue-50 p-1 rounded transition-colors"><Search size={14} /></button>
                     </td>
 
                     {/* --- 新增列内容 (24列) --- */}
                     <td className="px-2 py-2 align-middle text-center whitespace-nowrap">{order.hasCoupon ? <Check size={14} className="text-green-500 mx-auto"/> : <span className="text-gray-300">-</span>}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap">{order.isCouponVerified ? <span className="text-green-600 font-bold">是</span> : <span className="text-gray-400">否</span>}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap">{order.isCouponVerified ? <span className="text-green-600 font-bold text-[13px]">是</span> : <span className="text-gray-400 text-[13px]">否</span>}</td>
                     
                     {/* 是否已读 */}
                     <td className="px-2 py-2 align-middle text-center whitespace-nowrap">
-                        {order.isRead ? <span className="text-gray-400 text-[11px]">已读</span> : <span className="text-orange-500 text-[11px]">未读</span>}
+                        {order.isRead ? <span className="text-gray-400 text-[12px]">已读</span> : <span className="text-orange-500 text-[12px]">未读</span>}
                     </td>
                     
                     {/* 是否拨打 */}
                     <td className="px-2 py-2 align-middle text-center whitespace-nowrap">
-                        {order.isCalled ? <span className="text-gray-400 text-[11px]">已拨打</span> : <span className="text-orange-500 text-[11px]">未拨打</span>}
+                        {order.isCalled ? <span className="text-gray-400 text-[12px]">已拨打</span> : <span className="text-orange-500 text-[12px]">未拨打</span>}
                     </td>
                     
-                    {/* 以下列内容在初始状态会被右侧固定列遮挡 */}
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-600">{order.warrantyPeriod}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-600">{order.workPhone}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-700 font-medium">{order.customerName}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-600">{order.dispatcherName}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-600">{order.recorderName}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-700 font-medium">{order.masterName}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-emerald-600 font-bold">{formatCurrency(order.totalReceipt)}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-slate-500">{formatCurrency(order.cost)}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-orange-600 font-bold">{formatCurrency(order.revenue)}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-slate-700">{formatCurrency(order.actualPaid)}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-slate-700">{formatCurrency(order.advancePaymentAmount)}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-slate-700">{formatCurrency(order.otherReceipt)}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-slate-700">{formatCurrency(order.completionIncome)}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-[10px] text-slate-500">{order.completionTime || '-'}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-[10px] text-slate-500">{order.paymentTime || '-'}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-[10px] text-slate-500">{order.serviceTime || '-'}</td>
-                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-500">{order.voiderNameAndReason || '-'}</td>
+                    {/* 增加字号 */}
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-600 text-[13px]">{order.warrantyPeriod}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-600 text-[13px]">{order.workPhone}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-700 font-medium text-[13px]">{order.customerName}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-600 text-[13px]">{order.dispatcherName}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-600 text-[13px]">{order.recorderName}</td>
+                    
+                    {/* 改动：师傅列变为两行显示 */}
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap">
+                        <div className="flex flex-col items-center">
+                            <span className="text-slate-700 font-medium text-[13px]">{order.masterName}</span>
+                            <span className="text-slate-400 text-[11px]">{order.masterPhone}</span>
+                        </div>
+                    </td>
+                    
+                    {/* 增加字号 */}
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-emerald-600 font-bold text-[13px]">{formatCurrency(order.totalReceipt)}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-slate-500 text-[13px]">{formatCurrency(order.cost)}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-orange-600 font-bold text-[13px]">{formatCurrency(order.revenue)}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-slate-700 text-[13px]">{formatCurrency(order.actualPaid)}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-slate-700 text-[13px]">{formatCurrency(order.advancePaymentAmount)}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-slate-700 text-[13px]">{formatCurrency(order.otherReceipt)}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap font-mono text-slate-700 text-[13px]">{formatCurrency(order.completionIncome)}</td>
+                    
+                    {/* 时间列: 增加字号 */}
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-[12px] text-slate-500">{order.serviceTime || '-'}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-[12px] text-slate-500">{order.completionTime || '-'}</td>
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-[12px] text-slate-500">{order.paymentTime || '-'}</td>
+                    
+                    {/* 增加字号 */}
+                    <td className="px-2 py-2 align-middle text-center whitespace-nowrap text-slate-500 text-[12px]">{order.voiderNameAndReason || '-'}</td>
                     <td className="px-2 py-2 align-middle whitespace-nowrap"><TooltipCell content={order.voidDetails || '-'} maxWidthClass="max-w-[150px]" showTooltip={false} /></td>
                     <td className="px-2 py-2 align-middle whitespace-nowrap"><TooltipCell content={order.cancelReasonAndDetails || '-'} maxWidthClass="max-w-[150px]" showTooltip={false} /></td>
-                    <td className="px-2 py-2 align-middle whitespace-nowrap text-slate-500">{order.favoriteRemark || '-'}</td>
+                    <td className="px-2 py-2 align-middle whitespace-nowrap text-slate-500 text-[12px]">{order.favoriteRemark || '-'}</td>
 
 
                     {/* --- 固定列 (联系人, 催单, 操作) --- */}
@@ -1187,13 +1321,16 @@ const App = () => {
               </tbody>
             </table>
           </div>
-          <div className="bg-white px-6 py-3 border-t border-gray-200 flex justify-between items-center mt-auto">
-             <span className="text-xs text-slate-500 font-medium">显示 {((currentPage - 1) * pageSize) + 1} 到 {Math.min(currentPage * pageSize, totalItems)} 条，共 {totalItems} 条订单</span>
-             <div className="flex gap-1.5">
-               <button onClick={handlePrevPage} disabled={currentPage === 1} className="px-3 py-1 border border-slate-200 rounded-md bg-white text-slate-600 text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm">上一页</button>
-               <button className="px-3 py-1 border border-blue-600 rounded-md bg-blue-600 text-white text-xs font-bold shadow-md">{currentPage}</button>
-               <button onClick={handleNextPage} disabled={currentPage === totalPages} className="px-3 py-1 border border-slate-200 rounded-md bg-white text-slate-600 text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm">下一页</button>
-             </div>
+          
+          {/* --- 分页栏重构: 居中显示 --- */}
+          <div className="bg-white px-6 py-3 border-t border-gray-200 mt-auto">
+             <Pagination 
+                total={totalItems} 
+                current={currentPage} 
+                pageSize={pageSize} 
+                onPageChange={setCurrentPage}
+                onSizeChange={setPageSize}
+             />
           </div>
         </div>
       </div>
