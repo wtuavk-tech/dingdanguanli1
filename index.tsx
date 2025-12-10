@@ -390,7 +390,7 @@ const SearchPanel = ({ isOpen }: { isOpen: boolean; onToggle?: () => void }) => 
               </div>
               {/* 13. Offline Master Phone */}
               <div className="flex items-center gap-2 col-span-1">
-                  <label className="text-xs text-slate-500 whitespace-nowrap min-w-[30px] text-right">线下师傅手机</label>
+                  <label className="text-[11px] text-slate-500 min-w-[44px] text-right leading-none">线下师傅<br/>手机</label>
                   <input type="text" className="h-8 w-full px-2 border border-blue-200 rounded text-xs focus:border-blue-500 focus:outline-none bg-white placeholder-slate-300" placeholder="请输入..." />
               </div>
               {/* 14. Cost Ratio */}
@@ -710,11 +710,14 @@ const TooltipCell = ({ content, maxWidthClass = "max-w-[100px]", showTooltip }: 
   );
 }
 
-const ServiceItemCell = ({ item }: { item: string }) => {
+const ServiceItemCell = ({ item, warranty }: { item: string, warranty: string }) => {
   return (
-    <div className="py-1">
+    <div className="py-1 flex flex-col">
       <span className="font-medium text-gray-800 text-[12px]">{/* 增加字号 */}
         {item}
+      </span>
+      <span className="text-[11px] text-gray-500 mt-0.5 leading-none">
+        {warranty}
       </span>
     </div>
   );
@@ -1120,7 +1123,7 @@ const App = () => {
               <thead className="sticky top-0 z-40 shadow-sm">
                 <tr className="bg-slate-50 border-b-2 border-gray-300 text-base font-bold uppercase text-slate-700 tracking-wider">
                   <th className="px-2 py-2 whitespace-nowrap w-[110px] bg-slate-50 text-center sticky top-0 z-30">手机号</th>
-                  <th className="px-2 py-2 w-[140px] whitespace-nowrap bg-slate-50 sticky top-0 z-30">服务项目</th>
+                  <th className="px-2 py-2 w-[140px] whitespace-nowrap bg-slate-50 sticky top-0 z-30">项目/质保期</th>
                   <th className="px-2 py-2 whitespace-nowrap w-[90px] bg-slate-50 text-center sticky top-0 z-30">状态</th>
                   
                   {/* --- 已有列 --- */}
@@ -1185,7 +1188,7 @@ const App = () => {
                     
                     {/* 服务项目: 增加字号 */}
                     <td className="px-2 py-2 align-middle whitespace-nowrap" onMouseEnter={handleMouseEnterOther}>
-                      <ServiceItemCell item={order.serviceItem} />
+                      <ServiceItemCell item={order.serviceItem} warranty={order.warrantyPeriod} />
                     </td>
                     
                     <td className="px-2 py-2 align-middle" onMouseEnter={() => setHoveredTooltipCell({rowId: order.id, colKey: 'service'})}>
@@ -1218,7 +1221,7 @@ const App = () => {
                     </td>
                     
                     {/* 建议分成: 增加字号 */}
-                    <td className="px-2 py-2 text-center align-middle font-medium text-slate-600 text-[11px]" onMouseEnter={handleMouseEnterOther}>
+                    <td className="px-2 py-2 text-center align-middle font-medium text-slate-600 text-[13px]" onMouseEnter={handleMouseEnterOther}>
                        {order.serviceRatio}
                     </td>
                     
